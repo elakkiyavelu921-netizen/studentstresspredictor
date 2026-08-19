@@ -2,10 +2,14 @@ from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import joblib
 
+import os
+
 app = Flask(__name__)
 
 # Load Logistic Regression model
-model = joblib.load("student_stress_logistic_model2.pkl")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "student_stress_logistic_model2.pkl")
+model = joblib.load(MODEL_PATH)
 
 
 # Home page
@@ -19,8 +23,8 @@ def home():
 def predict():
 
     try:
-        # Get JSON data from HTML
-        data = request.get_json()
+        # Get form data from HTML
+        data = request.form
 
         # Create student DataFrame
         student = pd.DataFrame([{
@@ -40,28 +44,22 @@ def predict():
         # Get probabilities
         probabilities = model.predict_proba(student)[0]
 
-        probability_data = {}
+        probability_data = []
 
         for class_name, probability in zip(
             model.classes_,
             probabilities
         ):
-            probability_data[class_name] = round(
-                probability * 100,
-                2
-            )
+            probability_data.append({
+                "class_name": class_name,
+                "probability": round(probability * 100, 2)
+            })
 
-        # Send result to HTML
-        return jsonify({
-            "prediction": prediction,
-            "probabilities": probability_data
-        })
+        # Render result in HTML
+        return render_template("index.html", prediction=prediction, probabilities=probability_data)
 
     except Exception as e:
-
-        return jsonify({
-            "error": str(e)
-        }), 500
+        return render_template("index.html", error=str(e))
 
 
 # Run Flask
